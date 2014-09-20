@@ -1,0 +1,14 @@
+{application, erlmonads,
+ [
+  {description, "Syntax extensions for Erlang provides do-notation and Monads"},
+  {vsn, "%%VSN%%"},
+  {modules, [
+             erlmonads
+            ]},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
