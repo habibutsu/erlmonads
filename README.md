@@ -32,9 +32,9 @@ To use any of these parse-transformers, you must add the necessary
 `-compile` attributes to your Erlang source files. For example:
 
     -module(test).
-    -compile({parse_transform, cut}).
-    -compile({parse_transform, do}).
-    -compile({parse_transform, import_as}).
+    -compile({parse_transform, erlmonads_expr_cut}).
+    -compile({parse_transform, erlmonads_expr_do}).
+    -compile({parse_transform, erlmonads_expr_import_as}).
     ...
 
 Then, when compiling `test.erl`, you must ensure `erlc` can locate
@@ -366,8 +366,8 @@ rather than `'>>'(A, B)`. There is no `'>>'/2` operator in our Erlang monads.
 
 The simplest monad possible is the Identity-monad:
 
-    -module(identity_m).
-    -behaviour(monad).
+    -module(erlmonads_identity).
+    -behaviour(erlmonads).
     -export(['>>='/2, return/1, fail/1]).
 
     '>>='(X, Fun) -> Fun(X).
@@ -382,8 +382,8 @@ values passed to it, and always invokes the subsequent expression function.
 What could we do if we did inspect the values passed to the sequencing
 combinators? One possibility results in the Maybe-monad:
 
-    -module(maybe_m).
-    -behaviour(monad).
+    -module(erlmonads_maybe).
+    -behaviour(erlmonads).
     -export(['>>='/2, return/1, fail/1]).
     
     '>>='({just, X}, Fun) -> Fun(X);
@@ -398,7 +398,7 @@ very neat looking code which immediately stops should any failure be
 encountered.
 
     if_safe_div_zero(X, Y, Fun) ->
-        do([maybe_m ||
+        do([erlmonads_maybe ||
             Result <- case Y == 0 of
                           true  -> fail("Cannot divide by zero");
                           false -> return(X / Y)
@@ -456,22 +456,22 @@ can be transformed into the much shorter
 
     write_file(Path, Data, Modes) ->
         Modes1 = [binary, write | (Modes -- [binary, write])],
-        do([error_m ||
+        do([erlmonads_error ||
             Bin <- make_binary(Data),
             Hdl <- file:open(Path, Modes1),
-            Result <- return(do([error_m ||
+            Result <- return(do([erlmonads_error ||
                                  file:write(Hdl, Bin),
                                  file:sync(Hdl)])),
             file:close(Hdl),
             Result]).
     
     make_binary(Bin) when is_binary(Bin) ->
-        error_m:return(Bin);
+        erlmonads_error:return(Bin);
     make_binary(List) ->
         try
-            error_m:return(iolist_to_binary(List))
+            erlmonads_error:return(iolist_to_binary(List))
         catch error:Reason ->
-                error_m:fail(Reason)
+                erlmonads_error:fail(Reason)
         end.
 
 Note that we have a nested *do*-block so, as with the non-monadic
@@ -486,8 +486,8 @@ Here we are using an Error-monad which is remarkably similar to the
 Maybe-monad, but matches the typical Erlang practice of indicating
 errors by an `{error, Reason}` tuple:
 
-    -module(error_m).
-    -behaviour(monad).
+    -module(erlmonads_error).
+    -behaviour(erlmonads).
     -export(['>>='/2, return/1, fail/1]).
     
     '>>='({error, _Err} = Error, _Fun) -> Error;
@@ -540,19 +540,3 @@ function to import from the module (including arity) and the right
 being the local name by which the function is to be known--the
 *alias*. The implementation creates a local function, so the alias is
 safe to use in, for example, `Var = fun dup/2` expressions.
-
-
-
-## License
-
-(The MPL)
-
-Software distributed under the License is distributed on an "AS IS"
-basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
-the License for the specific language governing rights and limitations
-under the License.
-
-The Original Code is Erlando.
-
-The Initial Developer of the Original Code is VMware, Inc.
-Copyright (c) 2011-2013 VMware, Inc.  All rights reserved.
