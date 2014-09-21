@@ -5,7 +5,7 @@ modules that are no longer supported starting with version OTP 16.
 
 ## Introduction
 
-Erlando is a set of syntax extensions for Erlang. Currently it
+Erlmonads is a set of syntax extensions for Erlang. Currently it
 consists of three syntax extensions, all of which take the form of
 [parse-transformers](http://www.erlang.org/doc/man/erl_id_trans.html).
 
@@ -215,7 +215,7 @@ you're just defining another list element.
 
 
 See
-[test_cut.erl](http://hg.rabbitmq.com/erlando/file/default/test/src/test_cut.erl)
+[erlmonads_expr_cut_test.erl](https://github.com/habibutsu/erlmonads/blob/master/test/erlmonads_expr_cut_test.erl)
 for more examples, including the use of *cut*s in list comprehensions and
 binary construction.
 
@@ -496,6 +496,75 @@ errors by an `{error, Reason}` tuple:
     
     return(X) -> {ok,    X}.
     fail(X)   -> {error, X}.
+
+
+#### Monad Transformers
+
+Monads can be *nested* by having *do*-blocks inside *do*-blocks, and
+*parameterized* by defining a monad as a transformation of another, inner,
+monad. The State Transform is a very commonly used monad transformer,
+and is especially relevant for Erlang. Because Erlang is a
+single-assignment language, it's very common to end up with a lot of
+code that incrementally numbers variables:
+
+    State1 = init(Dimensions),
+    State2 = plant_seeds(SeedCount, State1),
+    {DidFlood, State3} = pour_on_water(WaterVolume, State2),
+    State4 = apply_sunlight(Time, State3),
+    {DidFlood2, State5} = pour_on_water(WaterVolume, State4),
+    {Crop, State6} = harvest(State5),
+    ...
+
+This is doubly annoying, not only because it looks awful, but also
+because you have to re-number many variables and references whenever a
+line is added or removed. Wouldn't it be nice if we could abstract out the
+`State`? We could then have a monad encapsulate the state and provide
+it to (and collect it from) the functions we wish to run.
+
+
+The State-transform can be applied to any monad. If we apply it to the
+Identity-monad then we get what we're looking for. The key extra
+functionality that the State transformer provides us with is the
+ability to `get` and `set` (or just plain `modify`) state from within
+the inner monad. If we use both the *do* and *cut* parse-transformers, we
+can write:
+
+    StateT = erlmonads_state_t:new(erlmonads_identity),
+    SM = StateT:modify(_),
+    SMR = StateT:modify_and_return(_),
+    StateT:exec(
+      do([StateT ||
+
+          StateT:put(init(Dimensions)),
+          SM(plant_seeds(SeedCount, _)),
+          DidFlood <- SMR(pour_on_water(WaterVolume, _)),
+          SM(apply_sunlight(Time, _)),
+          DidFlood2 <- SMR(pour_on_water(WaterVolume, _)),
+          Crop <- SMR(harvest(_)),
+          ...
+
+          ]), undefined).
+
+We began by creating a State-transform over the Identity-monad:
+
+    StateT = erlmonads_state_t:new(erlmonads_identity),
+    ...
+
+> This is the syntax for *instantiating* parameterized modules. `StateT` is a
+variable referencing a module instance which, in this case, is a monad.
+
+and we define two shorthands for running functions that either just
+modify the state, or modify the state *and* return a result:
+
+    SM = StateT:modify(_),
+    SMR = StateT:modify_and_return(_),
+    ...
+
+There's a bit of bookkeeping required but we achieve our goal: there are no
+state variables now to renumber whenever we make a change. We used *cut*s
+to leave holes in the functions where State should be fed in; and we
+obeyed the protocol that if a function returns both a result and a state, it
+is in the form of a `{Result, State}` tuple. The State-transform does the rest.
 
 
 ### Beyond Monads

@@ -22,7 +22,11 @@
 -compile({parse_transform, erlmonads_expr_do}).
 
 -export([
-    maybe/1
+    maybe/1,
+    fib_m/1,
+    fib_m_step/1,
+    fib_rec/1,
+    fib_rec/3
 ]).
 
 sequence_test() ->
@@ -49,6 +53,26 @@ maybe(Arg) ->
     do([erlmonads_maybe
         || erlmonads_plus:guard(erlmonads_maybe, is_number(Arg)),
            return(Arg*Arg)]).
+
+fib_test() ->
+    true = lists:all(fun ({X, Y}) -> X =:= Y end,
+                     [{fib_m(N), fib_rec(N)} || N <- lists:seq(0, 20)]).
+
+%% Classic monadic implementation of fibonnaci
+fib_m(N) ->
+    StateT = erlmonads_state_t:new(erlmonads_identity),
+    {_, R} = StateT:exec(
+        erlmonads:sequence(
+            StateT,
+            lists:duplicate(N, fib_m_step(StateT))), {0, 1}),
+    R.
+
+fib_m_step(StateT) -> StateT:modify(fun ({X, Y}) -> {Y, X+Y} end).
+
+%% Classic recursive implementation of fibonnaci
+fib_rec(N) when N >= 0 -> fib_rec(N, 0, 1).
+fib_rec(0, _X, Y) -> Y;
+fib_rec(N,  X, Y) -> fib_rec(N-1, Y, X+Y).
 
 list_test() ->
     %% Demonstrate equivalence of list comprehensions and list monad
@@ -79,6 +103,27 @@ omega_test() ->
                        return({X,Y,Z})]),
     ?assert(A =/= B),
     ?assert(A =:= lists:usort(B)).
+
+error_t_list_test() ->
+    M = erlmonads_error_t:new(erlmonads_list),
+    R = M:run(do([M || E1 <- M:lift([1, 2, 3]),
+                       E2 <- M:lift([4, 5, 6]),
+                       case (E1 * E2) rem 2 of
+                           0 -> return({E1, E2});
+                           _ -> fail(not_even_product)
+                       end])),
+    R = [{ok, {1, 4}}, {error, not_even_product}, {ok, {1, 6}},
+         {ok, {2, 4}}, {ok, {2, 5}},              {ok, {2, 6}},
+         {ok, {3, 4}}, {error, not_even_product}, {ok, {3, 6}}],
+
+    %% Compare with the non-error_t version, which will remove failures:
+    S = do([erlmonads_list || E1 <- [1, 2, 3],
+                      E2 <- [4, 5, 6],
+                      case (E1 * E2) rem 2 of
+                          0 -> return({E1, E2});
+                          _ -> fail(not_even_product)
+                      end]),
+    S = [{1, 4}, {1, 6}, {2, 4}, {2, 5}, {2, 6}, {3, 4}, {3, 6}].
 
 %% Tests for 'let-match binding' (a-la 'let' in Haskell's 'do'
 %% expression) But instead of 'let' here we use 'match' (=) expression
