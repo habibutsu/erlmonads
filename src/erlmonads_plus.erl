@@ -17,7 +17,7 @@
 -module(erlmonads_plus).
 
 -export([behaviour_info/1]).
--export([guard/2, msum/2, mfilter/3]).
+-export([guard/2, guard/3, msum/2, mfilter/3]).
 
 -ifdef(use_specs).
 -type(monad(_A) :: any()). %% urm, don't know what to do here.
@@ -37,6 +37,9 @@ behaviour_info(_Other) ->
 
 guard(Monad, true)  -> Monad:return(ok);
 guard(Monad, false) -> Monad:fail("").
+
+guard(Monad, true, _Reason) -> Monad:return(ok);
+guard(Monad, false, Reason) -> Monad:fail(Reason).
 
 msum(Monad, List) ->
     lists:foldr(Monad:mplus(_, _), Monad:mzero(), List).
