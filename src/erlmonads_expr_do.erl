@@ -25,9 +25,15 @@
 
 -export([parse_transform/2, format_error/1]).
 
+-ifdef(debug_do).
+-define(LOG(Forms), io:format("~s~n", [erl_prettypr:format(erl_syntax:form_list(Forms))])).
+-else.
+-define(LOG(Forms), true).
+-endif.
+
 parse_transform(Forms, _Options) ->
     Forms1 = forms(Forms),
-    %%io:format("~s~n", [erl_prettypr:format(erl_syntax:form_list(Forms1))]),
+    ?LOG(Forms1),
     Forms1.
 
 %% forms(Fs) -> lists:map(fun (F) -> form(F) end, Fs).
