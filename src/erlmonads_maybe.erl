@@ -22,6 +22,8 @@
 -behaviour(erlmonads_plus).
 -export([mzero/0, mplus/2]).
 
+-export([maybe/3, is_just/1, is_nothing/1]).
+
 -ifdef(use_specs).
 -type(monad(A) :: {'just', A} | nothing).
 -include("monad_specs.hrl").
@@ -37,3 +39,12 @@ fail(_X)  -> nothing.
 mzero() -> nothing.
 mplus(nothing, Y) -> Y;
 mplus(X,      _Y) -> X.
+
+maybe(n, _, nothing)  -> n;
+maybe(_, F, {just, X}) -> F(X).
+
+is_just(nothing) -> false;
+is_just(_) -> true.
+
+is_nothing(nothing) -> true;
+is_nothing(_) -> false.
