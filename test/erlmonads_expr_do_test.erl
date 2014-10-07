@@ -172,17 +172,23 @@ let_match_test() ->
                         {D,R} <- return(DivRem(N,M)),
                         E <- T3,
                         return({D,R,D+R+E})]),
-    ?assertEqual({ok,{14,0,57}}, T4).
-    % FIXME
-    % T5 = do([erlmonads_error || X <- [1,2,3],
-    %                    X2 = X*X,
-    %                    Y <- lists:seq(1,X2),
-    %                    Y2 = {Y,X2},
-    %                    Z = Y + X2,
-    %                    return({X2,Y,Y2,Z})]),
-    % T5 = do([erlmonads_error || X <- [1,2,3],
-    %                    Y <- lists:seq(1,X*X),
-    %                    return({X*X,Y,{Y,X*X},Y+X*X})]).
+    ?assertEqual({ok,{14,0,57}}, T4),
+    T5 = do([erlmonads_list || X <- [1,2,3],
+                       X2 = X*X,
+                       Y <- lists:seq(1,X2),
+                       Y2 = {Y,X2},
+                       Z = Y + X2,
+                       return({X2,Y,Y2,Z})]),
+    ?assertMatch([
+        {1,1,{1,1},2},
+        {4,1,{1,4},5},
+        {4,2,{2,4},6},
+        {4,3,{3,4},7},
+        {4,4,{4,4},8}|_],
+        T5),
+    T5 = do([erlmonads_list || X <- [1,2,3],
+                       Y <- lists:seq(1,X*X),
+                       return({X*X,Y,{Y,X*X},Y+X*X})]).
 
 let_first_test() ->
     M = do([erlmonads_list || A = 3,
